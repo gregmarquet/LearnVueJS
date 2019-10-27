@@ -2528,3 +2528,196 @@ new Vue({
 Now we can access all the methods from vue-resource.
 
 To test the vue-resource, we setup a firebase database. We chose realtime database in test mode.
+
+Now we can setup a form on our vue instance and connect it to a method like `submit()` in this case.
+
+``` html
+<div class="form-group">
+  <label>Username</label>
+  <input type="text" class="form-control" v-model="user.username">
+</div>
+<div class="form-group">
+  <label>Mail</label>
+  <input type="text" class="form-control" v-model="user.email">
+</div>
+<button class="btn btn-primary" @click="submit">Submit</button>
+```
+And in our script:
+
+``` javascript
+export default {
+  data() {
+    return {
+      user: {
+        username: '',
+        email: '' 
+      }
+    }
+  },
+  methods: {
+    submit() {
+      this.$http.post('https://vuejs-http-f8a69.firebaseio.com/data.json', this.user)
+        .then(response => {
+          console.log(response)
+        }, error => {
+          console.log(error)
+      });
+    }
+  }
+}
+```
+
+Since we are working with firebase, we will have to create a node and add the json extension
+
+`'https://vuejs-http-f8a69.firebaseio.com/data.json'` is the url we need to pass to the $http.post method. The `data` node name could be anything, but firebase only accepts json extension.
+
+The second argument of the $http.post method is the data we want to send with the request. In this case we are sending our user. We also have access to the error.
+
+vue-resource is returning a promise, so we can use .then to do something with the response.
+
+### sending a GET request
+
+You can fetch data using the `$http.get()` method. This method takes the url as the first argument. It doesn't need a second argument. It also returns a promise, and vue-resource comes with some methods you can use on a get request like `.json()` for example. It turns the response into an object and returns it. This method is also a promise, it will return the data so you have to `return response.json()` and chaine another .then method to it to use the data returned.
+
+As an example, look at the fetchData method:
+
+``` javascript
+methods: {
+  submit() {
+    this.$http.post('https://vuejs-http-f8a69.firebaseio.com/data.json', this.user)
+      .then(response => {
+        console.log(response)
+      }, error => {
+        console.log(error)
+      });
+  },
+  fetchData() {
+    this.$http.get('https://vuejs-http-f8a69.firebaseio.com/data.json')
+      .then(response => {
+        return response.json();
+      })
+      .then( data => {
+        const resultArray = [];
+        for(let key in data) {
+          resultArray.push(data[key]);
+        }
+        this.users = resultArray;
+      })
+  }
+}
+```
+
+### Configure vue-resource globally
+
+You can see it the code above, on line 3 and line 11, we are repeating the url to which we are making the request. We could set it up globally. vue-resource gives use a lots of methods to help us.
+
+In the global instance, where we called `Vue.use(VueResource)`, we can use `Vue.http.options.root = 'YOUR URL'`
+
+``` javascript
+import Vue from 'vue'
+import VueResource from 'vue-resource'
+import App from './App.vue'
+
+Vue.use(VueResource);
+Vue.http.options.root = 'https://vuejs-http-f8a69.firebaseio.com/data.json';
+
+new Vue({
+  el: '#app',
+  render: h => h(App)
+})
+```
+
+Then in your request, you can pass an empty string or append something to the url you made globally available.
+
+``` javascript
+methods: {
+  submit() {
+    this.$http.post('', this.user)
+      .then(response => {
+        console.log(response)
+      }, error => {
+        console.log(error)
+      });
+  },
+  fetchData() {
+    this.$http.get('')
+      .then(response => {
+        return response.json();
+      })
+      .then( data => {
+        const resultArray = [];
+        for(let key in data) {
+          resultArray.push(data[key]);
+        }
+        this.users = resultArray;
+      })
+  }
+}
+```
+
+On this global options object you could also set a default header for your requests amongst other things.
+
+Just keep in mind that in the global instance, you don't need the dollar sign in front of the http method, only outside of the global instance.
+
+### intercepting requests
+
+In the global instance, we can also set some interceptors.
+Interceptors is an array of function that we want to execute on each request basically.
+
+As an example:
+
+``` javascript
+import Vue from 'vue'
+import VueResource from 'vue-resource'
+import App from './App.vue'
+
+Vue.use(VueResource);
+Vue.http.options.root = 'https://vuejs-http-f8a69.firebaseio.com/data.json';
+Vue.http.interceptors.push((request, next) => {
+  console.log(request);
+  if(request.method == 'POST') {
+    request.method = 'PUT'
+  }
+  next();
+});
+
+new Vue({
+  el: '#app',
+  render: h => h(App)
+})
+```
+
+In this example, we intercept the request that are Post request and transform them into Put requests.
+
+The function next is to allow the request to continue running.
+
+### intercepting Responses
+
+You can also intercept responses in the next function, you have access to the response. So you could modify the response on every requests.
+
+``` javascript
+import Vue from 'vue'
+import VueResource from 'vue-resource'
+import App from './App.vue'
+
+Vue.use(VueResource);
+Vue.http.options.root = 'https://vuejs-http-f8a69.firebaseio.com/data.json';
+Vue.http.interceptors.push((request, next) => {
+  console.log(request);
+  if(request.method == 'POST') {
+    request.method = 'PUT'
+  }
+  next(response => {
+    response.json = () => {
+      return {
+        messages: response.body
+      }
+    }
+  });
+});
+
+new Vue({
+  el: '#app',
+  render: h => h(App)
+})
+```
