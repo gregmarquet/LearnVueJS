@@ -2721,3 +2721,428 @@ new Vue({
   render: h => h(App)
 })
 ```
+### Routing
+
+To add the vue-router pluggin we are doing the same thing as we did for vue-resource, we import it in the global instance and use the `Vue.use()` method.
+
+``` javascript
+import Vue from 'vue'
+import Vuerouter from 'vue-router';
+import App from './App.vue'
+
+Vue.use(VueRouter);
+
+new Vue({
+  el: '#app',
+  render: h => h(App)
+})
+```
+
+Then you want to setup your routes. You can set them up in the global instance or outsource it in another file, but still it will need to be registered in the global instance.
+
+So we create routes.js file:
+
+Inside, we export a const routes that is an array, each element of this array is a route.
+
+``` javascript
+import User from './components/user/User.vue';
+import Home from './components/Home.vue';
+
+export const routes = [
+  { path: '', component: Home},
+  { path: '/user', component: User}
+];
+
+```
+
+Now back in main.js, we can register those routes:
+
+``` javascript
+import Vue from 'vue'
+import Vuerouter from 'vue-router';
+import App from './App.vue';
+import { routes } from ',/routes';
+
+Vue.use(VueRouter);
+
+const router = new VueRouter({
+  routes //es6 same as routes: routes
+});
+
+new Vue({
+  el: '#app',
+  router, //es6 same as router: router
+  render: h => h(App)
+})
+```
+
+Then in your App.vue component, you can use `<router-view>` to tell Vue were to display the component that needs to be displayed on a specific route.
+
+``` html
+<router-view></router-view>
+```
+router-view is a built in componentcomming with vue-router and it tell vue were to display the component needed on the desired route.
+
+### routing mode Hash vs History
+
+In single page application we generally use the Hashtag to the url to tell the browser to handle the part before the Hash by sending it to the server and let the part after the Hash to be handled by our javascript application.
+
+Since it is not hard to configure the server and having the hash in the url is not that pretty. The trick is to configure your server so that it returns the index html file in all cases. Because in our index.html file , the vue application is launched and can parse the urls and take over
+
+In order to tell vue-router that we have configured our server correctly and that we want to use the history mode (the mode without hastag) we will add the mode in the router like this in the main.js file:
+
+``` javascript
+const router = new VueRouter({
+  routes, //es6 same as routes: routes
+  mode: 'history'
+});
+```
+
+### Navigating with Router Links
+
+When using router-view, we have access to `<router-link>` The router links are setup in a way that it will not reload the page, it will simply isplay the right component.
+
+We can use them like this:
+
+``` html
+<template>
+  <ul class="nav nav-pills">
+    <li role="representation"><router-link to="/">Home</router-link></li>
+    <li role="representation"><router-link to="/user">User</router-link></li>
+  </ul>
+</template>
+```
+### Navigate from code
+
+If we want to navigate to a certain page using a button click for example instead of a link, we would do:
+
+``` html
+<template>
+    <div>
+      <h1>The User Page</h1>
+      <button @click="navigateToHome" class="btn btn-primary">Go Home</button>
+    </div>
+</template>
+
+<script>
+export default {
+  methods: {
+    navigateToHome() {
+      this.$router.push('/');
+    }
+  }
+}
+</script>
+```
+
+You can see that we have access to the `$router` method using the `$` because it is external. In main.js were we import vue-router we have access to it without the `$` but not in the other VUe instances.
+
+### Setting Up Route Parameters
+
+In our routes.js file, we can add a dynamic part. for example for user, we can add the Id.
+
+``` javascript
+import User from './components/user/User.vue';
+import Home from './components/Home.vue';
+
+export const routes = [
+  { path: '', component: Home},
+  { path: '/user/:id', component: User}
+];
+```
+The `:id` is telling the route that it needs to match user/something
+
+now if we are trying to navigate to /user it will not work, because the route is expection something after the /user. In Header we can simulate that by hard coding /something after /user like this:
+
+``` html
+<template>
+  <ul class="nav nav-pills">
+    <li role="representation"><router-link to="/">Home</router-link></li>
+    <li role="representation"><router-link to="/user/10">User</router-link></li>
+  </ul>
+</template>
+```
+
+### Fetching and Using Route Parameters
+
+To get the parateter passed to the route, we can use the $route.params. For example, in the user route, we added a parameter :id, and in the user, we can do that:
+
+``` html
+<template>
+    <div>
+      <h1>The User Page</h1>
+      <p>Loaded Params: {{ id }}</p>
+      <button @click="navigateToHome" class="btn btn-primary">Go Home</button>
+    </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      id: this.$route.params.id
+    }
+  },
+  methods: {
+    navigateToHome() {
+      this.$router.push('/');
+    }
+  }
+}
+</script>
+```
+
+See on line 13, we ave access to the $route.params.id
+
+### Reacting to changes in Route Params
+
+if vue is loading the same component and only the params is changing. The Id in user will not be updated. In order to track the change in params, we can setup a watcher.
+
+``` html
+<template>
+    <div>
+      <h1>The User Page</h1>
+      <p>Loaded Params: {{ id }}</p>
+      <button @click="navigateToHome" class="btn btn-primary">Go Home</button>
+    </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      id: this.$route.params.id
+    }
+  },
+  watch: {
+    '$route'(to, from) {
+      this.id = to.params.id;
+    }
+  },
+  methods: {
+    navigateToHome() {
+      this.$router.push('/');
+    }
+  }
+}
+</script>
+```
+
+Line 16 we are setting a watcher, we have access to this '$route(to, from)' method where to is the route we are going to and from the route we are coming from.
+
+In vue-router 2.2 we can extract the route params via "props" eliminating the need for watching the $route
+
+### Setting up child routes (Nested Routes)
+
+to setup child route, we use the children object in the routes.js. import all the nested components and setup the routes:
+
+``` javascript
+import User from './components/user/User.vue';
+import Home from './components/Home.vue';
+import UserStart from './components/user/UserStart.vue';
+import UserDetail from './components/user/UserDetail.vue';
+import UserEdit from './components/user/UserEdit.vue';
+
+
+export const routes = [
+  { path: '', component: Home},
+  { path: '/user', component: User, children: [
+    { path: '', component: UserStart },
+    { path: ':id', component: UserDetail },
+    { path: ':id/edit', component: UserEdit }
+  ]}
+];
+```
+
+And the you can use the router-view component inside the parent component, here the user component to display the nested component. Here line 5
+
+``` html
+<template>
+    <div>
+      <h1>The User Page</h1>
+      <button @click="navigateToHome" class="btn btn-primary">Go Home</button>
+      <router-view></router-view>
+    </div>
+</template>
+
+<script>
+export default {
+  methods: {
+    navigateToHome() {
+      this.$router.push('/');
+    }
+  }
+}
+</script>
+```
+
+### Navigate to nested routes
+
+We can setup route-link to navigate to nested routes:
+
+``` html
+<template>
+  <div>
+    <p>Please select a User</p>
+    <hr>
+    <ul class="list-group">
+      <router-link 
+        tag="li"
+        to="/user/1" 
+        class="list-group-item" 
+        style="cursor: pointer">User 1</router-link>
+      <router-link 
+        tag="li"
+        to="/user/2" 
+        class="list-group-item" 
+        style="cursor: pointer">User 2</router-link>
+      <router-link 
+        tag="li"
+        to="/user/3" 
+        class="list-group-item" 
+        style="cursor: pointer">User 3</router-link>
+    </ul>
+  </div>
+</template>
+```
+
+The `to=""` attribute will tell whhich route to point the element to.
+
+In the UserDetail component we can access the params like this:
+
+``` html
+<template>
+    <div>
+      <h3>Some User Details</h3>
+      <p>User Loaded has Id: {{ $route.params.id }}</p>
+    </div>
+</template>
+```
+
+### Making Router Link more Dynamic
+
+You can make router link more dynamic by binding the `:to=""` 
+
+``` html
+<template>
+    <div>
+      <h3>Some User Details</h3>
+      <p>User Loaded has Id: {{ $route.params.id }}</p>
+      <router-link tag="button" :to="'/user/' + $route.params.id + '/edit'">Edit user</router-link>
+    </div>
+</template>
+```
+
+### Better way of creating links with Named Routes
+
+When setting up the routes, you can setup a name for each route and then use it anywhere you use the route.
+
+``` javascript
+import User from './components/user/User.vue';
+import Home from './components/Home.vue';
+import UserStart from './components/user/UserStart.vue';
+import UserDetail from './components/user/UserDetail.vue';
+import UserEdit from './components/user/UserEdit.vue';
+
+
+export const routes = [
+  { path: '', component: Home},
+  { path: '/user', component: User, children: [
+    { path: '', component: UserStart },
+    { path: ':id', component: UserDetail },
+    { path: ':id/edit', component: UserEdit, name: 'userEdit' }
+  ]}
+];
+```
+On line 13 we are setting up the name for the route, now we can use it in the router-link, but now we could pass the params
+
+``` html
+<template>
+    <div>
+      <h3>Some User Details</h3>
+      <p>User Loaded has Id: {{ $route.params.id }}</p>
+      <router-link tag="button" :to="{ name: 'userEdit', parmas: { id: $route.params.id } }">Edit user</router-link>
+    </div>
+</template>
+```
+
+### Multiple router views (named router views)
+
+It is also possible to name a router views
+
+``` javascript
+import User from './components/user/User.vue';
+import Home from './components/Home.vue';
+import UserStart from './components/user/UserStart.vue';
+import UserDetail from './components/user/UserDetail.vue';
+import UserEdit from './components/user/UserEdit.vue';
+import Header from './components/Header.vue';
+
+
+export const routes = [
+  { path: '', name: Home, components: {
+    default: Home,
+    'header-top': Header
+  }},
+  { path: '/user', components: {
+    default: User,
+    'header-bottom': Header
+  }, children: [
+    { path: '', component: UserStart },
+    { path: ':id', component: UserDetail },
+    { path: ':id/edit', component: UserEdit, name: 'userEdit' }
+  ]}
+];
+```
+
+See how we are using components instead of component on line 10 and 14. we are passing a default and a named component.
+
+In our App.vue, we can now load the header at different position depending if I am in the home page or the user page:
+
+``` html
+<template>
+    <div class="container">
+        <div class="row">
+            <div class="col-xs-12 col-sm-8 col-sm-offset-2 col-md-6 col-md-offset-3">
+                <h1>Routing</h1>
+                <hr>
+                <router-view name="header-top"></router-view>
+                <router-view></router-view>
+                <router-view name="header-bottom"></router-view>
+            </div>
+        </div>
+    </div>
+</template>
+```
+
+### Redirecting
+
+We can redirect a user by setting up a redirect in our routes.js file after all our routes.
+
+``` javascript
+export const routes = [
+  { path: '', name: Home, components: {
+    default: Home,
+    'header-top': Header
+  }},
+  { path: '/user', components: {
+    default: User,
+    'header-bottom': Header
+  }, children: [
+    { path: '', component: UserStart },
+    { path: ':id', component: UserDetail },
+    { path: ':id/edit', component: UserEdit, name: 'userEdit' }
+  ]},
+  { path: '/redirect-me', redirect: '/'}
+];
+```
+
+### Setting Up "Catch All" routes / Wildcards
+
+We can setup  route that would redirect any routes that are not the routes we setup.
+
+After all our routes, we setup another routes with the path:'*'
+
+``` javascript
+{ path: '*', redirect: '/'}
+```
