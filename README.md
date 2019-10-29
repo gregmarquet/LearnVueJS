@@ -3146,3 +3146,517 @@ After all our routes, we setup another routes with the path:'*'
 ``` javascript
 { path: '*', redirect: '/'}
 ```
+### Vuex
+
+Vuex is a state management tool.
+The idea in Vuex is to use a centralized store, a central state.
+
+It doesn't mean that a component cannot have it's own state. If you have a property in a component that is only used and only changed in this component, you don't need to manage it in the centralized state.
+
+Generaly you store your state in a folder called store under source at the components level. In this store folder, you can create a store.js file which should hold the store.
+
+We need to install vuex, `npm install --save vuex`
+
+In store.js, we setup the store and export it:
+
+``` javascript
+import Vue from 'vue';
+import Vuex from 'vuex';
+
+Vue.use(Vuex);
+
+export const store = new Vuex.Store({
+  state: {
+    counter: 0
+  }
+});
+```
+
+Then We have to register it globally. In the main.js file
+
+``` javascript
+import Vue from 'vue'
+import App from './App.vue'
+
+import { store } from './store/store';
+
+new Vue({
+  el: '#app',
+  store, // es6 same as store: store
+  render: h => h(App)
+})
+```
+
+Now in the example of a counter button passed of to a result component, we can access the store in each component:
+
+In the Counter component:
+
+``` html
+<template>
+    <div>
+        <button class="btn btn-primary" @click="increment">Increment</button>
+        <button class="btn btn-primary" @click="decrement">Decrement</button>
+    </div>
+</template>
+
+<script>
+    export default {
+        methods: {
+            increment() {
+                // this.$emit('updated', 1);
+                this.$store.state.counter++;
+            },
+            decrement() {
+                // this.$emit('updated', -1);
+                this.$store.state.counter--;
+            }
+        }
+    }
+</script>
+```
+In the result component:
+
+``` html
+<template>
+    <p>Counter is: {{ counter }}</p>
+</template>
+
+<script>
+    export default {
+        // props: ['counter']
+        computed: {
+          counter() {
+            return this.$store.state.counter;
+          }
+        }
+    }
+</script>
+```
+And in the App component:
+
+``` html
+<template>
+    <div class="container">
+        <div class="row">
+            <div class="col-xs-12 col-sm-8 col-sm-offset-2 col-md-6 col-md-offset-3">
+                <h1>Vuex</h1>
+                <!-- <app-result :counter="counter"></app-result> -->
+                <app-result></app-result>
+                <hr>
+                <!-- <app-counter @updated="counter += $event"></app-counter> -->
+                <app-counter></app-counter>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script>
+    import Counter from './components/Counter.vue';
+    import Result from './components/Result.vue';
+
+    export default {
+        // data() {
+        //     return {
+        //         counter: 0
+        //     }
+        // },
+        components: {
+            appCounter: Counter,
+            appResult: Result,
+        }
+    }
+</script>
+```
+You can see in theis example, all code that is commented was how we would have done it without the store.
+
+This solution is good for small apps, but can have problems when multiple components are doing calculation with the data in the store.
+
+## Using Getters to get the state
+
+Instead of accessing directly the state from the store, from the component, we can use getters.
+
+The getter access the state from the store, perform calculation and every component can access the result from the getter.
+
+We are setting those getters in the store lke this:
+
+``` javascript
+import Vue from 'vue';
+import Vuex from 'vuex';
+
+Vue.use(Vuex);
+
+export const store = new Vuex.Store({
+  state: {
+    counter: 0
+  },
+  getters: {
+    doubleCounter: state => {
+      return state.counter * 2;
+    }
+  }
+});
+```
+
+And then our components have accesss to this getter:
+
+``` html
+<template>
+    <p>Counter is: {{ counter }}</p>
+</template>
+
+<script>
+    export default {
+        computed: {
+          counter() {
+            return this.$store.getters.doubleCounter;
+          }
+        }
+    }
+</script>
+```
+### Mapping getters to properties
+
+``` html
+<template>
+    <div>
+      <p>Counter is: {{ counter }}</p>
+      <p>Number of clicks: {{ stringCounter }}</p>
+    </div>
+</template>
+
+<script>
+    export default {
+        // props: ['counter']
+        computed: {
+          counter() {
+            // return this.$store.state.counter;
+            return this.$store.getters.doubleCounter;
+          },
+          stringCounter() {
+            return this.$store.getters.stringCounter;
+          }
+        }
+    }
+</script>
+```
+You can see in this example that if we have more getters, and we want to access those from a component, we have to repeat ourself setting up the computed properties. There is a way to have access to the getters automatically without having to set the computed properties.
+
+``` html
+<template>
+    <div>
+      <p>Counter is: {{ doubleCounter }}</p>
+      <p>Number of clicks: {{ stringCounter }}</p>
+    </div>
+</template>
+
+<script>
+import { mapGetters } from 'vuex';
+
+    export default {
+        computed: mapGetters([
+          'doubleCounter',
+          'stringCounter'
+        ])
+    }
+</script>
+```
+We can add the mapGetters helper, it will generate automatically computer properties with the same name as the getters.
+
+This is a great solution, but if we want to add our own computed property unrelated to the getters, we cannot. we could use the es6 spread operator to go around this problem, but we would have to install a special version of babel, at least for the time being.
+
+`npm install --save-dev babel-preset-stage-2`
+
+and add it to .babelrc file:
+
+``` javascript
+{
+  "presets": [
+    ["es2015", { "modules": false }],
+    ["stage-2"]
+  ]
+}
+```
+
+Now we should be able to do this:
+``` javascript
+computed: {
+  ...mapGetters([
+    'doubleCounter',
+    'stringCounter'
+  ])
+}
+```
+### Using Mutations
+
+Mutation is a little bit the same concept as the getters exept for changing the state. Every component can commit a change to the mutations and the other components would get the updated value.
+
+We can add the mutations to the store like this:
+
+``` javascript
+import Vue from 'vue';
+import Vuex from 'vuex';
+
+Vue.use(Vuex);
+
+export const store = new Vuex.Store({
+  state: {
+    counter: 0
+  },
+  getters: {
+    doubleCounter: state => {
+      return state.counter * 2;
+    },
+    stringCounter: state => {
+      return state.counter + 'clicks';
+    }
+  },
+  mutations: {
+    increment: state => {
+      state.counter++;
+    },
+    decrement: state => {
+      state.counter--;
+    }
+  }
+});
+```
+And we can use them like this in the Counter.vue for example.
+
+``` html
+<template>
+    <div>
+        <button class="btn btn-primary" @click="increment">Increment</button>
+        <button class="btn btn-primary" @click="decrement">Decrement</button>
+    </div>
+</template>
+
+<script>
+    export default {
+        methods: {
+            increment() {
+                this.$store.commit('increment');
+            },
+            decrement() {
+                this.$store.commit('decrementCounter.vue for example');
+            }
+        }
+    }
+</script>
+```
+But like with the mapGetters helper, we have a mapMutations helper:
+
+``` html
+<script>
+    import { mapMutations } from 'vuex';
+    export default {  
+        methods: {
+            ...mapMutations([
+              'increment',
+              'decrement'
+            ])
+        }
+    }
+</script>
+```
+### Mutations can only run synchronously
+
+You cannot run asynchronous code in a mutation.
+
+### Using Actions
+
+Actions are extra functions where we may run asynchronous task, an intermediary between components and Mutations.
+
+The components dispatch to actions, and actions commit to mutations.
+
+We can set the actions oin the store:
+
+``` javascript
+import Vue from 'vue';
+import Vuex from 'vuex';
+
+Vue.use(Vuex);
+
+export const store = new Vuex.Store({
+  state: {
+    counter: 0
+  },
+  getters: {
+    doubleCounter: state => {
+      return state.counter * 2;
+    },
+    stringCounter: state => {
+      return state.counter + 'clicks';
+    }
+  },
+  mutations: {
+    increment: state => {
+      state.counter++;
+    },
+    decrement: state => {
+      state.counter--;
+    }
+  },
+  actions: {
+    increment: ({ commit }) => {
+      commit('increment');
+    },
+    decrement: ({ commit }) => {
+      commit('decrement');
+    },
+    asyncIncrement: ({ commit }) => {
+      setTimeout(() => {
+        commit('increment');
+      }, 1000);
+    },
+    asyncDecrement: ({ commit }) => {
+      setTimeout(() => {
+        commit('decrement');
+      }, 1000);
+    }
+  }
+});
+```
+
+And in our counter we can just replace the mutations by our actions, and there is also a mapActions helper:
+``` html
+<script>
+    import { mapActions } from 'vuex';
+    export default {  
+        methods: {
+            ...mapActions([
+              'increment',
+              'decrement'
+            ])
+        }
+    }
+</script>
+```
+
+Our actions and our mutation are designed so that we can pass a payload to them.
+
+``` html
+<template>
+    <div>
+        <button class="btn btn-primary" @click="increment(100)">Increment</button>
+        <button class="btn btn-primary" @click="decrement(100)">Decrement</button>
+    </div>
+</template>
+
+<script>
+    import { mapActions } from 'vuex';
+    export default {  
+        methods: {
+            ...mapActions([
+              'increment',
+              'decrement'
+            ])
+        }
+    }
+</script>
+```
+
+``` javascript
+import Vue from 'vue';
+import Vuex from 'vuex';
+
+Vue.use(Vuex);
+
+export const store = new Vuex.Store({
+  state: {
+    counter: 0
+  },
+  getters: {
+    doubleCounter: state => {
+      return state.counter * 2;
+    },
+    stringCounter: state => {
+      return state.counter + 'clicks';
+    }
+  },
+  mutations: {
+    increment: (state, payload) => {
+      state.counter += payload;
+    },
+    decrement: (state, payload) => {
+      state.counter -= payload;
+    }
+  },
+  actions: {
+    increment: ({ commit }, payload) => {
+      commit('increment', payload);
+    },
+    decrement: ({ commit }, payload) => {
+      commit('decrement', payload);
+    },
+    asyncIncrement: ({ commit }) => {
+      setTimeout(() => {
+        commit('increment');
+      }, 1000);
+    },
+    asyncDecrement: ({ commit }) => {
+      setTimeout(() => {
+        commit('decrement');
+      }, 1000);
+    }
+  }
+});
+```
+### Two way binding (v-model) and vuex
+
+It is possible to use a get() and a set() methods in a computed property.
+
+I want to set and get the value from a component, I setup my store
+
+``` javascript
+import Vue from 'vue';
+import Vuex from 'vuex';
+
+Vue.use(Vuex);
+
+export const store = new Vuex.Store({
+  state: {
+    value: 0
+  },
+  getters: {
+    value: state => {
+      return state.value;
+    }
+  },
+  mutations: {
+    updateValue: (state, payload) => {
+      state.value = payload;
+    }
+  },
+  actions: {
+    updateValue: ({ commit }, payload) => {
+      commit('updateValue', payload);
+    }
+  }
+});
+```
+
+In the app:
+
+``` html
+<template>
+    <div>
+      <input type="text" v-model="value">
+      <p>{{ value }}</p>
+    </div>
+</template>
+
+<script>
+    export default {
+        computed: {
+          value: {
+            get() {
+              return this.$store.getters.value;
+            },
+            set(value) {
+              this.$store.dispatch('updateValue', value);
+            }
+          }
+        }
+    }
+</script>
+```
