@@ -311,7 +311,7 @@ To set up a two way data binding, you use the v-model:
 
 In this case, the input will display the name on first render, but if you change the input field, the `<p>` tag will also update, so the model binded two ways.
 
-### Computer Properties
+### Computed Properties
 
 functions can be added to the `methods` property in the Vue instance, in wich case it will be run everytime anything is rendered/re-rendered on the page.
 
